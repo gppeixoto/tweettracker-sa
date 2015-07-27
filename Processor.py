@@ -15,7 +15,7 @@
 """
 
 from sklearn.feature_extraction.text import TfidfVectorizer as Tfidf
-from sklearn.preprocessing import scale
+from sklearn.preprocessing import scale as scaleMat
 import numpy as np
 import re
 import cPickle as pickle
@@ -72,7 +72,7 @@ class Processor:
         self.__translator = goslate.Goslate()
         # WARNING: do NOT change the parameters of the vectorization. It is already
         # set to the optimal configuration.
-        self.__vectorizer = Tfidf(ngram_range=(1,3), binary=True\
+        self.__vectorizer = Tfidf(ngram_range=(1,3), binary=True,
             tokenizer=self.tokenizer)
 
         if lang != "en":
@@ -164,11 +164,13 @@ class Processor:
             List of tweets after the normalization process.
         feats : (N,5) numpy matrix
             Dense matrix of Twitter features.
-            feats[0]: counts the number of elongated words.
-            feats[1]: counts the number of hashtags.
-            feats[2]: counts the number of exclamation points.
-            feats[3]: counts the number of question marks.
-            feats[4]: counts the number of negated contexts.
+            feats[0]: number of elongated words.
+            feats[1]: number of hashtags.
+            feats[2]: number of exclamation points.
+            feats[3]: number of question marks.
+            feats[4]: number of negated contexts.
+            feats[5]: number of words.
+            @TODO: include the clusters counts.
         """
         ret = self.__preprocess(tweetList)
         corpus = ret[0]
@@ -177,7 +179,8 @@ class Processor:
         feats = np.vstack((rep_count, hst_count, exc_count, qst_count, neg_count, tw_length)).transpose()
         return (corpus, feats)
 
-    def buildMatrix(self, tweetList, feats, removeShort = True, saveVectorizer = True, saveMatrix = False):
+    def buildMatrix(self, tweetList, feats, removeShort=True, 
+            saveVectorizer=True, saveMatrix=False, scale=True, verbose=False):
         """
         Parameters
         ----------
@@ -195,6 +198,10 @@ class Processor:
         saveMatrix : boolean
             Whether to save (binary format)the sparse matrix 
             representation of the tweetList in disk. Default set to false.
+        scale : boolean
+            Whether to scale according to the variance.
+            Default set to true.
+
         Returns
         ----------
         out : (N', M') matrix
@@ -204,8 +211,10 @@ class Processor:
         """
         list_copy = []
         feat_copy = []
+        t00 = time.time()
 
         if removeShort:
+            if verbose: print 'Removing short tweets...'
             for i, tweet in enumerate(tweetList):
                 if feats[i][-1] > 3:
                     list_copy.append(tweet)
@@ -214,11 +223,50 @@ class Processor:
             list_copy = tweetList
             feat_copy = feats
 
+        # Line below should take a while
+        t0 = time.time()
+        if verbose: print 'Vectorizing the tweets...'
         mat = self.__vectorizer.fit_transform(list_copy)
-        if saveVectorizer:
+        if verbose:
+            print 'Time elapsed on vectorizing process: %.0fs' % ((time.time()-t0))
+
+        if saveVectorizer == True:
+            if verbose: print 'Storing the vectorizer in disk...'
+            t0 = time.time()
             pickle.dump(self.__vectorizer, open("vectorizer.p", "wb"))
-        if saveMatrix:
+            if verbose:
+                print 'Time elapsed vectorizing: %.0fs' % ((time.time()-t0))
+        if saveMatrix == True:
+            if verbose: print 'Storing the vectorizer in disk...'
+            t0 = time.time()
+            if verbose:
+                print 'Time elapsed storing matrix: %.0fs' % ((time.time()-t0))
             pickle.dump(mat, open("tweetMatrix.p", "wb"))
 
+        mat = hstack([mat, toSparse(feat_copy)])
+        if scale:
+            mat = scaleMat(mat, with_mean=False)
+        if verbose: print 'Total time elapsed: %.0fs' % ((time.time()-t0))
+        return mat
 
+    def process_build(self, tweetList, verbose=False):
+        """
+        Convenience method. Processes input and builds matrix.
 
+        Parameters
+        ----------
+        tweetList : list
+            List of tweets to be processed.
+
+        Returns
+        ----------
+        mat : (N', M) csr_matrix
+            Sparse matrix representation of the extracted
+            features from the tweets.
+        """
+        t0 = time.time()
+        if verbose: 'Normalizing and extracting features...'
+        corpus, feats = self.process(tweetList)
+        if verbose: 'Time elapsed on feature extraction: %.0fs' % ((time.time()-t0))
+        mat = self.buildMatrix(corpus, feats, saveVectorizer=False, saveMatrix=False, verbose=verbose)
+        return mat
