@@ -1,6 +1,6 @@
 """
 # @author: Guilherme Peixoto  -- gpp@cin.ufpe.br    #
-# Last edit: July 27 - 2015                         #
+#                                                   #
 # Class for processing input to the adequate format #
 #   to sentiment classification. Text is represent- #
 #  -ed as a tf-idf matrix concatenated with a set   #
@@ -184,7 +184,7 @@ class Processor:
             print 'Time elapsed on feature extraction: %.0fs' % ((time.time()-t0))
         return (corpus, feats)
 
-    def buildMatrix(self, tweetList, feats, removeShort=True, 
+    def build_matrix(self, tweetList, feats, removeShort=True, 
             saveVectorizer=False, saveMatrix=False, scale=True, verbose=False):
         """
         Parameters
@@ -212,9 +212,9 @@ class Processor:
             Sparse matrix with the Tfidf representation of unigrams,
             bigrams and trigrams plus the features counts. 
             @TODO: add the clusters counts.
-        idxs : (N',) array
-            Array of indexes with the positions of the tweets that
-            were not removed in relation to the original dataset.
+        idxs : (N',) array, optional
+            Returned in case removeShort=True. Array of indexes with the positions 
+            of the tweets that were not removed in relation to the original dataset.
         """
         list_copy = []
         feat_copy = []
@@ -277,10 +277,13 @@ class Processor:
         mat : (N', M) csr_matrix
             Sparse matrix representation of the extracted
             features from the tweets.
+        idxs : (N',) array, optional
+            Returned in case removeShort=True. Array of indexes with the positions 
+            of the tweets that were not removed in relation to the original dataset.
         """
         
         corpus, feats = self.process(tweetList, verbose=verbose)
-        mat = self.buildMatrix(corpus, feats, saveVectorizer=False, saveMatrix=False, verbose=verbose)
+        mat = self.build_matrix(corpus, feats, saveVectorizer=False, saveMatrix=False, verbose=verbose)
         return mat
 
     def transform(self, tweetList):
@@ -291,20 +294,17 @@ class Processor:
         Parameters
         ----------
         tweetList : list
+            List of tweets to be processed.
 
         Returns
         ----------
-
+        mat : (N', M) csr_matrix
+            Sparse matrix representation of the extracted
+            features from the tweets.
         """
         tweets, feats = self.process(tweetList)
         mat = self.__vectorizer.transform(tweets)
         mat = hstack([mat, toSparse(feats)])
         mat = scaleMat(mat, with_mean=False)
-
-        # delete unnecessary to clear mem -- needed?
-        # tweets = None
-        # feats = None
-        # del tweets
-        # del feats
-
+        
         return mat
