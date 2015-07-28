@@ -257,7 +257,6 @@ class Processor:
         mat = hstack([mat, toSparse(feat_copy)])
         if scale:
             mat = scaleMat(mat, with_mean=False)
-        if verbose: print 'Total time elapsed: %.0fs' % ((time.time()-t00))
         
         if idxs is None:
             return mat
