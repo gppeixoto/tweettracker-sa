@@ -5,7 +5,7 @@
 #   to sentiment classification. Text is represent- #
 #  -ed as a tf-idf matrix concatenated with a set   #
 #   of hand-crated features. This representation is #
-#   close to the state of the art.                  #
+#   close to the state of the art for twitter.      #
 #                                                   #
 #   See:                                            #
 #   Mohammad et. al, "NRC-Canada: Building the Sta- #
@@ -20,12 +20,10 @@ import numpy as np
 import re
 import cPickle as pickle
 from nltk.corpus import stopwords
-import sys
 import twokenize # tweet tokenizer
 import time
 from scipy.sparse import csr_matrix as toSparse
 from scipy.sparse import hstack
-from scipy.sparse import vstack
 import goslate
 
 tweet_tokenizer = twokenize.tokenize
@@ -47,7 +45,9 @@ pattern = re.compile(r'(.)\1{2,}', re.DOTALL) # for elongated words truncation
 
 class Processor:
     """
-    Class for processing tweets to the adequate format.
+    Class for processing tweets to the adequate format. Do not use for
+    many languages at once, as it will not only cause a high drop in
+    accuracy but may break the code as well.
     
     Parameters
     ----------
@@ -62,7 +62,7 @@ class Processor:
     lang : string
         Language of the tweets. Default set to english.
     """
-    def __init__(self, tokenizer=tweet_tokenizer, stopwords=stop, lang="en"):
+    def __init__(self, tokenizer=tweet_tokenizer, stopwords=stop, lang="en", ngrams=2):
         self.tokenizer = tokenizer
         self.stopwords = stopwords
         self.lang = lang
@@ -72,7 +72,7 @@ class Processor:
         self.__translator = goslate.Goslate()
         # WARNING: do NOT change the parameters of the vectorization. It is already
         # set to the optimal configuration.
-        self.__vectorizer = Tfidf(ngram_range=(1,3), binary=True,
+        self.__vectorizer = Tfidf(ngram_range=(1,ngrams), binary=True,
             tokenizer=self.tokenizer)
 
         if lang != "en":
@@ -148,7 +148,7 @@ class Processor:
             tweetList[x] = tweet
         return (tweetList, rep_count, hst_count, exc_count, qst_count, neg_count, tw_length)
 
-    def process(self, tweetList):
+    def process(self, tweetList, verbose=False):
         """
         Processes the tweet list and returns the corpus after the
         normalization process and the features matrix.
@@ -172,15 +172,20 @@ class Processor:
             feats[5]: number of words.
             @TODO: include the clusters counts.
         """
+        t0 = time.time()
+        if verbose:
+            print 'Normalizing and extracting features...'
         ret = self.__preprocess(tweetList)
         corpus = ret[0]
         rep_count, hst_count, exc_count, qst_count, neg_count, \
             tw_length = map(lambda x: np.array(x), list(ret[1:]))
         feats = np.vstack((rep_count, hst_count, exc_count, qst_count, neg_count, tw_length)).transpose()
+        if verbose:
+            print 'Time elapsed on feature extraction: %.0fs' % ((time.time()-t0))
         return (corpus, feats)
 
     def buildMatrix(self, tweetList, feats, removeShort=True, 
-            saveVectorizer=True, saveMatrix=False, scale=True, verbose=False):
+            saveVectorizer=False, saveMatrix=False, scale=True, verbose=False):
         """
         Parameters
         ----------
@@ -194,13 +199,12 @@ class Processor:
             to true.
         saveVectorizer : boolean
             Whether to save the vectorizer in disk (binary format). 
-            Default set to true. Highly recommended to save it.
+            Default set to false.
         saveMatrix : boolean
             Whether to save (binary format)the sparse matrix 
-            representation of the tweetList in disk. Default set to false.
+            representation of the tweetList in disk.
         scale : boolean
             Whether to scale according to the variance.
-            Default set to true.
 
         Returns
         ----------
@@ -208,9 +212,13 @@ class Processor:
             Sparse matrix with the Tfidf representation of unigrams,
             bigrams and trigrams plus the features counts. 
             @TODO: add the clusters counts.
+        idxs : (N',) array
+            Array of indexes with the positions of the tweets that
+            were not removed in relation to the original dataset.
         """
         list_copy = []
         feat_copy = []
+        idxs = []
         t00 = time.time()
 
         if removeShort:
@@ -219,9 +227,12 @@ class Processor:
                 if feats[i][-1] > 3:
                     list_copy.append(tweet)
                     feat_copy.append(feats[i])
+                    idxs.append(i)
         else:
             list_copy = tweetList
             feat_copy = feats
+            idxs = None
+        idxs = np.array(idxs)
 
         # Line below should take a while
         t0 = time.time()
@@ -233,7 +244,7 @@ class Processor:
         if saveVectorizer == True:
             if verbose: print 'Storing the vectorizer in disk...'
             t0 = time.time()
-            pickle.dump(self.__vectorizer, open("vectorizer.p", "wb"))
+            pickle.dump(self.__vectorizer, open("vectorizer-"+self.lang+".p", "wb"))
             if verbose:
                 print 'Time elapsed vectorizing: %.0fs' % ((time.time()-t0))
         if saveMatrix == True:
@@ -241,13 +252,17 @@ class Processor:
             t0 = time.time()
             if verbose:
                 print 'Time elapsed storing matrix: %.0fs' % ((time.time()-t0))
-            pickle.dump(mat, open("tweetMatrix.p", "wb"))
+            pickle.dump(mat, open("tweetMatrix-"+self.lang+".p", "wb"))
 
         mat = hstack([mat, toSparse(feat_copy)])
         if scale:
             mat = scaleMat(mat, with_mean=False)
-        if verbose: print 'Total time elapsed: %.0fs' % ((time.time()-t0))
-        return mat
+        if verbose: print 'Total time elapsed: %.0fs' % ((time.time()-t00))
+        
+        if idxs is None:
+            return mat
+        else:
+            return (mat, idxs)
 
     def process_build(self, tweetList, verbose=False):
         """
@@ -264,9 +279,33 @@ class Processor:
             Sparse matrix representation of the extracted
             features from the tweets.
         """
-        t0 = time.time()
-        if verbose: 'Normalizing and extracting features...'
-        corpus, feats = self.process(tweetList)
-        if verbose: 'Time elapsed on feature extraction: %.0fs' % ((time.time()-t0))
+        
+        corpus, feats = self.process(tweetList, verbose=verbose)
         mat = self.buildMatrix(corpus, feats, saveVectorizer=False, saveMatrix=False, verbose=verbose)
+        return mat
+
+    def transform(self, tweetList):
+        """
+        Transform tweets to the trained tfidf representation. Do NOT
+        call this function unless a vectorizer has already been trained.
+        
+        Parameters
+        ----------
+        tweetList : list
+
+        Returns
+        ----------
+
+        """
+        tweets, feats = self.process(tweetList)
+        mat = self.__vectorizer.transform(tweets)
+        mat = hstack([mat, toSparse(feats)])
+        mat = scaleMat(mat, with_mean=False)
+
+        # delete unnecessary to clear mem -- needed?
+        # tweets = None
+        # feats = None
+        # del tweets
+        # del feats
+
         return mat
