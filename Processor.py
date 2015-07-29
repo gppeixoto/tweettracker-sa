@@ -25,6 +25,7 @@ import time
 from scipy.sparse import csr_matrix as toSparse
 from scipy.sparse import hstack
 import goslate
+import warnings
 
 tweet_tokenizer = twokenize.tokenize
 stop = stopwords.words('english')
@@ -62,7 +63,7 @@ class Processor:
     lang : string
         Language of the tweets. Default set to english.
     """
-    def __init__(self, tokenizer=tweet_tokenizer, stopwords=stop, lang="en", ngrams=2):
+    def __init__(self, tokenizer=tweet_tokenizer, lang="en", stopwords=stop, ngrams=2):
         self.tokenizer = tokenizer
         self.stopwords = stopwords
         self.lang = lang
@@ -79,6 +80,24 @@ class Processor:
             self.__target_not = self.__translator.translate("not", lang)
             self.__adverbs = [self.__translator.translate(adv, lang) for adv in adverbs]
 
+    def get_params(self):
+        params = dict()
+        params["tokenizer"] = self.tokenizer
+        params["lang"] = self.lang
+        params["stopwords"] = list(self.stopwords) if self.stopwords != None else None
+        #TODO: fix the other parameters
+        return params
+
+    def set_params(self, tokenizer=None, lang=None, stopwords=None, ngrams=None):
+        #TODO: fix the other parameters
+        if tokenizer is not None:
+            setattr(self, "tokenizer", tokenizer)
+        if lang is not None:
+            setattr(self, "lang", lang)
+        if stopwords is not None:
+            setattr(self, "stopwords", stopwords)
+        if ngrams is not None:
+            setattr(self, "ngrams", ngrams)
 
     def __preprocess(self, tweetList):
         """
@@ -187,6 +206,7 @@ class Processor:
     def build_matrix(self, tweetList, feats, removeShort=True, 
             saveVectorizer=False, saveMatrix=False, scale=True, verbose=False):
         """
+        # TODO: change name of the function to something more intuitive.
         Parameters
         ----------
         tweetList : list
