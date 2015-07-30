@@ -117,7 +117,7 @@ class Processor:
         neg_count = []
         tw_length = []  
         ll = len(tweetList)
-        dot = ll / 25
+        dot = ll / 50
         for x in xrange(ll):
             if x % dot == 0: stdout.write(".")
             tweet = tweetList[x].lower().decode('utf-8')
@@ -204,7 +204,7 @@ class Processor:
             tw_length = map(lambda x: np.array(x), list(ret[1:]))
         feats = np.vstack((rep_count, hst_count, exc_count, qst_count, neg_count, tw_length)).transpose()
         if verbose:
-            print 'Time elapsed on feature extraction: %.0fs' % ((time.time()-t0))
+            print '\nTime elapsed on feature extraction: %.0fs' % ((time.time()-t0))
         return (corpus, feats)
 
     def fit_vectorizer(self, tweetList, saveVectorizer=False, verbose=False):

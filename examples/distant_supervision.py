@@ -3,11 +3,13 @@
 #                                                   #
 # Simple use case for the processor class. Data is  #
 #   a subset of Sentiment140 dataset.               #
-#   http://help.sentiment140.com/for-students       #
-#   This script uses a .p format different from the #
-#   raw data provided by Sentiment140. TODO: fix    #
-#   the input format or provide the datas.          #
-#   Measurements run on a i5 2.7GHz.                # 
+#   For this script to run properly, you need       #
+#   to have the decompressed zip file on the same   #
+#   folder as this script, as well as the Processor #
+#   class file.                                     #
+#                                                   #
+#   Should take close to 20min to run everything.   #
+#   Measurements run on a 2.6 GHz Intel Core i5.    #
 """
 import cPickle as pickle
 from sklearn.linear_model import LogisticRegression as LR
@@ -16,18 +18,30 @@ from sklearn.metrics import roc_auc_score
 from Processor import Processor
 import numpy as np
 import time
-import assert
 
-# 30s on loading phase
-t0 = time.time()
-X_train = pickle.load(open("../data/experiment/labeledTrainingData.p","r"))
+def format(fpath):
+    f = open(fpath)
+    lines = [line.split("\",\"") for line in f]
+    lines = [(line[-1][:-2], int(line[0][1:])) for line in lines]
+    lines_return = []
+    for i, line in enumerate(lines):
+        label = -1
+        if line[1] == 4:
+            lines_return.append((line[0], +1))
+        elif line[1] == 0:
+            lines_return.append((line[0], -1))
+        # ignoring neutral tweets and returning only
+        #   those classified as either pos or neg for
+        #   binary classification
+    return lines_return
+
+X_train = format("trainingandtestdata/training.1600000.processed.noemoticon.csv")
 X_train, y_train = zip(*X_train)
 X_train, y_train = map(lambda x: list(x), [X_train, y_train])
 
-X_test = pickle.load(open("../data/experiment/test_data.p", "r"))
+X_test = format("trainingandtestdata/testdata.manual.2009.06.14.csv")
 X_test, y_test = zip(*X_test)
 X_test, y_test = map(lambda x: list(x), [X_test, y_test])
-print '%.0fs' % ((time.time()-t0))
 
 pr = Processor()
 
@@ -46,8 +60,13 @@ X_test = pr.transform(X_test, saveMatrix=False, verbose=True)
 print 'TF-IDF Unigrams and Bigrams || Logistic Regression classifier'
 print '-'*40
 
+clf = LR()
+# Roughly 3 minutes on training
+t0 = time.time()
 print 'Training on %d samples' % (X_mat.shape[0])
 clf.fit(X_mat, y_train)
+print 'Training time: %.0f' % ((time.time()-t0))
+
 print 'Testing on %d samples' % (X_test.shape[0])
 preds = clf.predict(X_test)
 
@@ -55,4 +74,5 @@ acc = np.sum([int(x==y) for x,y in zip(preds, y_test)])/(len(preds)+.0)
 f1 = prfs(y_test, preds, average="macro")[-2]
 roc_auc = roc_auc_score(y_test, preds)
 
-print 'Accuracy: %.2f\t Macro F-1 Score: %.2f\t ROC_AUC Score: %.2f' % (acc, f1, roc_auc)
+print 'Report\n'+'-'*40
+print 'Accuracy: %.4f\nMacro F-1 Score: %.4f\nROC_AUC Score: %.4f' % (acc, f1, roc_auc)
