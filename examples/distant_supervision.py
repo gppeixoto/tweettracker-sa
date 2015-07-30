@@ -8,7 +8,7 @@
 #   folder as this script, as well as the Processor #
 #   class file.                                     #
 #                                                   #
-#   Should take close to 20min to run everything.   #
+#   Should take close to 20min(+-2min) to run.      #
 #   Measurements run on a 2.6 GHz Intel Core i5.    #
 """
 import cPickle as pickle
@@ -35,17 +35,19 @@ def format(fpath):
         #   binary classification
     return lines_return
 
+print 'Loading training data...'
 X_train = format("trainingandtestdata/training.1600000.processed.noemoticon.csv")
 X_train, y_train = zip(*X_train)
 X_train, y_train = map(lambda x: list(x), [X_train, y_train])
 
+print 'Loading test data...'
 X_test = format("trainingandtestdata/testdata.manual.2009.06.14.csv")
 X_test, y_test = zip(*X_test)
 X_test, y_test = map(lambda x: list(x), [X_test, y_test])
 
 pr = Processor()
 
-print 'No twitter-specific features'
+print '\nNo twitter-specific features'
 print '#'*40
 
 # ~8min processing phase
@@ -60,22 +62,22 @@ X_test = pr.transform(X_test, saveMatrix=False, verbose=True)
 
 # Compare the accuracy with and w/o the twitter-specific features.
 # Must scale the features matrix before concatenating with the ngrams matrix.
-print 'TF-IDF Unigrams and Bigrams || Logistic Regression classifier'
+print '\nTF-IDF Unigrams and Bigrams || Logistic Regression classifier'
 print '-'*40
 
 clf = LR()
 # Roughly 3 minutes on training
 t0 = time.time()
-print 'Training on %d samples' % (X_mat.shape[0])
+print 'Training on %d samples...' % (X_mat.shape[0])
 clf.fit(X_mat, y_train)
-print 'Training time: %.0f' % ((time.time()-t0))
+print 'Training time: %.0fs' % ((time.time()-t0))
 
-print 'Testing on %d samples' % (X_test.shape[0])
+print 'Testing on %d samples...' % (X_test.shape[0])
 y_pred = clf.predict(X_test)
 
 acc = (y_pred==y_test).sum()/(len(y_pred)+.0)
 f1 = prfs(y_test, y_pred, average="macro")[-2]
 roc_auc = roc_auc_score(y_test, y_pred)
 
-print 'Report\n'+'-'*40
+print '\nReport\n'+'-'*40
 print 'Accuracy: %.4f\nMacro F-1 Score: %.4f\nROC_AUC Score: %.4f' % (acc, f1, roc_auc)

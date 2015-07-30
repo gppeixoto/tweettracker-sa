@@ -160,7 +160,10 @@ class Processor:
                 if word == self.__target_not:
                     negs += 1
                     tweet[i] = ''
-                    tweet[i+1] = self.__target_not+'___'+tweet[i+1]
+                    if (i+1)<len(tweet):
+                        tweet[i+1] = self.__target_not+'___'+tweet[i+1]
+                    else:
+                        tweet[i] = self.__target_not
             hst_count.append(hsts)
             qst_count.append(qsts)
             exc_count.append(excs)
