@@ -45,6 +45,9 @@ X_test, y_test = map(lambda x: list(x), [X_test, y_test])
 
 pr = Processor()
 
+print 'No twitter-specific features'
+print '#'*40
+
 # ~8min processing phase
 # The twitter-specific tokenizer makes the parsing slow, however
 #   the accuracy is much improved with it.

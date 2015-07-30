@@ -15,7 +15,7 @@
 """
 
 from sklearn.feature_extraction.text import TfidfVectorizer as Tfidf
-from sklearn.preprocessing import scale as scaleMat
+from sklearn.preprocessing import scale
 import numpy as np
 import re
 import cPickle as pickle
@@ -137,16 +137,16 @@ class Processor:
 
             # Normalizing mentions, hyperlinks
             reps = 0. # float is intended type
-            hsts = 0.
+            hsts = 0. # necessary for scaling
             excs = 0.
             qsts = 0.
             negs = 0.
             last = -1.
             for i, word in enumerate(tweet):
                 if word.startswith(('.@', '@')): #mention
-                    tweet[i] = '___MENTION___'
+                    tweet[i] = '___mention___'
                 if word.startswith(('www','http')):
-                    tweet[i] = '___URL___'
+                    tweet[i] = '___url___'
                 if word.startswith('!'):
                     excs += 1
                     last = 0
@@ -159,7 +159,7 @@ class Processor:
                 if word == self.__target_not:
                     negs += 1
                     tweet[i] = ''
-                    tweet[i+1] = 'NEG___' + tweet[i+1]
+                    tweet[i+1] = self.__target_not+'___'+tweet[i+1]
             hst_count.append(hsts)
             qst_count.append(qsts)
             exc_count.append(excs)
@@ -204,7 +204,7 @@ class Processor:
             tw_length = map(lambda x: np.array(x), list(ret[1:]))
         feats = np.vstack((rep_count, hst_count, exc_count, qst_count, neg_count, tw_length)).transpose()
         if verbose:
-            print '\nTime elapsed on feature extraction: %.0fs' % ((time.time()-t0))
+            print '\nTime elapsed on processing and feature extraction: %.0fs' % ((time.time()-t0))
         return (corpus, feats)
 
     def fit_vectorizer(self, tweetList, saveVectorizer=False, verbose=False):
@@ -221,12 +221,12 @@ class Processor:
             Set verbose output on or off.        
         """
         t0 = time.time()
-        if verbose: print 'Vectorizing the tweets and fitting...'
+        if verbose: print 'Fitting tweets to vectorizer...'
         self.__vectorizer.fit(tweetList)
         if not self.__fitted:
             self.__fitted = True
         if verbose:
-            print 'Time elapsed on vectorizing process: %.0fs' % ((time.time()-t0))
+            print 'Time elapsed on fitting: %.0fs' % ((time.time()-t0))
 
         if saveVectorizer == True:
             if verbose: print 'Storing vectorizer in disk...'
@@ -278,6 +278,7 @@ class Processor:
         """
         Convenience method. Calls \"fit_vectorizer\" followed by
         \"transform\".
+        
         Parameters
         ----------
         tweetList : list
@@ -300,3 +301,42 @@ class Processor:
         self.fit_vectorizer(tweetList, saveVectorizer, verbose)
         mat = self.transform(tweetList, saveMatrix, verbose)
         return mat
+
+    def build_feature_matrix(self, tweetList, useTwitterFeatures, fit, saveVectorizer=False, 
+            saveMatrix=False, verbose=False):
+        """
+        Convenience method. Fits the vectorizer to \"raw\" tweet list input 
+        and builds the feature matrix. If vectorizer has already been fitted, 
+        invokes \"transform\" instead of \"fit_transform\". Twitter-specific 
+        features can be either concatenated or not.
+
+        Parameters
+        ----------
+        tweetList : list
+            Normalized tweet list, each entry containing one tweet only.
+        useTwitterFeatures : boolean
+            Whether to concatenate Twitter-specific features to the feature
+            matrix. The features are determined as in \"process\" function.
+        fit : boolean
+            Whether the vectorizer should be fitted or not. If True, function
+            will invoke \"fit_transform\", otherwise \"transform\".
+        saveVectorizer : boolean, optional
+            Whether to store the vectorizer in disk (binary format). 
+            Default set to false.
+        saveMatrix : boolean, optional
+            Whether to store the resulting matrix in disk (binary format). 
+            Default set to false.
+        verbose : boolean , optional
+            Set verbose output on or off.        
+        """
+        corpus, feats = self.process(tweetList, verbose)
+        if fit:
+            mat = self.fit_transform(corpus, saveVectorizer, saveMatrix, verbose)
+        else:
+            mat = self.transform(corpus, saveMatrix, verbose)
+        if useTwitterFeatures:
+            feats = scale(feats) # scale needed to faster convergence
+            feats = toSparse(feats) # csr_matrix format
+            mat = hstack([mat, feats])
+        return mat
+
