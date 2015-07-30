@@ -119,7 +119,8 @@ class Processor:
         ll = len(tweetList)
         dot = ll / 50
         for x in xrange(ll):
-            if x % dot == 0: stdout.write(".")
+            if x % dot == 0:
+                stdout.write("."); stdout.flush()
             tweet = tweetList[x].lower().decode('utf-8')
 
             # Count reps
@@ -209,6 +210,7 @@ class Processor:
 
     def fit_vectorizer(self, tweetList, saveVectorizer=False, verbose=False):
         """
+        Fits the tweet list to the instance's vectorizer.
 
         Parameters
         ----------
@@ -239,6 +241,9 @@ class Processor:
 
     def transform(self, tweetList, saveMatrix=False, verbose=False):
         """
+        Transform each tweet on the tweet list according to the
+        fitted vectorizer.
+
         Parameters
         ----------
         tweetList : list

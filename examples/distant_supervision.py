@@ -22,7 +22,7 @@ import time
 def format(fpath):
     f = open(fpath)
     lines = [line.split("\",\"") for line in f]
-    lines = [(line[-1][:-2], int(line[0][1:])) for line in lines]
+    lines = [(line[-1][:-1], int(line[0][1:])) for line in lines]
     lines_return = []
     for i, line in enumerate(lines):
         label = -1
@@ -71,11 +71,11 @@ clf.fit(X_mat, y_train)
 print 'Training time: %.0f' % ((time.time()-t0))
 
 print 'Testing on %d samples' % (X_test.shape[0])
-preds = clf.predict(X_test)
+y_pred = clf.predict(X_test)
 
-acc = np.sum([int(x==y) for x,y in zip(preds, y_test)])/(len(preds)+.0)
-f1 = prfs(y_test, preds, average="macro")[-2]
-roc_auc = roc_auc_score(y_test, preds)
+acc = (y_pred==y_test).sum()/(len(y_pred)+.0)
+f1 = prfs(y_test, y_pred, average="macro")[-2]
+roc_auc = roc_auc_score(y_test, y_pred)
 
 print 'Report\n'+'-'*40
 print 'Accuracy: %.4f\nMacro F-1 Score: %.4f\nROC_AUC Score: %.4f' % (acc, f1, roc_auc)
