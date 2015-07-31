@@ -121,7 +121,7 @@ class Processor:
         for x in xrange(ll):
             if x % dot == 0:
                 stdout.write("."); stdout.flush()
-            tweet = tweetList[x].lower().decode('utf-8')
+            tweet = tweetList[x].lower().encode('utf-8')
 
             # Count reps
             reps = pattern.findall(tweet)
