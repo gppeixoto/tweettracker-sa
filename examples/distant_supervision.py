@@ -15,7 +15,7 @@ import cPickle as pickle
 from sklearn.linear_model import LogisticRegression as LR
 from sklearn.metrics import precision_recall_fscore_support as prfs
 from sklearn.metrics import roc_auc_score
-from Processor import Processor
+from processor import Processor
 import numpy as np
 import time
 
