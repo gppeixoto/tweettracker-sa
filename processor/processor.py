@@ -42,6 +42,9 @@ emojiList = set([':-)', '(-:', '=)', '(=', '(:', ':)', ':-(', ')-:', '=(', ')=',
 
 posEmoji = set([':-)', '(-:', '=)', '(=', '(:', ':)', ':-(', ':D', '^_^', '^__^', '^___^', ':d', 'd:', ': )', '( :', '8)', \
             '(8', '8 )', ';)', '; )', '; )', '( ;', ';-)', '(-;', '(;'])
+
+negEmoji = emojiList.difference(posEmoji)
+
 punctuation = set([',', ';', '.', ':', '.', '!', '?', '\"', '*', '\'', '(', ')', '-'])
 pattern = re.compile(r'(.)\1{2,}', re.DOTALL) # for elongated words truncation
 
@@ -115,13 +118,14 @@ class Processor:
         qst_count = []
         qst_last = []
         neg_count = []
-        tw_length = []  
+        tw_length = [] 
+        labels = [] 
         ll = len(tweetList)
         dot = ll / 50
         for x in xrange(ll):
             if dot > 0 and x % dot == 0:
                 stdout.write("."); stdout.flush()
-            tweet = tweetList[x].lower().encode('utf-8')
+            tweet = tweetList[x].lower().encode('utf-8').decode('utf-8')
 
             # Count reps
             reps = pattern.findall(tweet)
@@ -130,11 +134,9 @@ class Processor:
 
             # Tokenizing
             tweet = self.tokenizer(tweet) # ok to use independent of language
-            tw_length.append(len(tweet))
 
-            # Short and stopwords, retweet and emoji removal
-            tweet = [word for word in tweet if word not in emojiList\
-                        and word not in self.stopwords and not word.startswith('RT')]
+            # Removing stopwords and retweet noise
+            tweet = [word for word in tweet if word not in self.stopwords and not word.startswith('RT')]
 
             # Normalizing mentions, hyperlinks
             reps = 0. # float is intended type
@@ -143,6 +145,7 @@ class Processor:
             qsts = 0.
             negs = 0.
             last = -1.
+            label = np.inf
             for i, word in enumerate(tweet):
                 if word.startswith(('.@', '@')): #mention
                     tweet[i] = '___mention___'
@@ -164,16 +167,21 @@ class Processor:
                         tweet[i+1] = self.__target_not+'___'+tweet[i+1]
                     else:
                         tweet[i] = self.__target_not
+                if label == np.inf and word in posEmoji:
+                    label = +1
+                elif label == np.inf and word in negEmoji:
+                    label = -1
             hst_count.append(hsts)
             qst_count.append(qsts)
             exc_count.append(excs)
             neg_count.append(negs)
-
+            tw_length.append(len(tweet))
+            labels.append(label)
             # Removing punctuation
             tweet = [''.join([w for w in word if w not in punctuation]) for word in tweet if len(word)>2]
             tweet = ' '.join(tweet) 
             tweetList[x] = tweet
-        return (tweetList, rep_count, hst_count, exc_count, qst_count, neg_count, tw_length)
+        return (tweetList, rep_count, hst_count, exc_count, qst_count, neg_count, tw_length, labels)
 
     def process(self, tweetList, verbose=False):
         """
@@ -205,8 +213,9 @@ class Processor:
         ret = self.__preprocess(tweetList, verbose)
         corpus = ret[0]
         rep_count, hst_count, exc_count, qst_count, neg_count, \
-            tw_length = map(lambda x: np.array(x), list(ret[1:]))
-        feats = np.vstack((rep_count, hst_count, exc_count, qst_count, neg_count, tw_length)).transpose()
+            tw_length, labels = map(lambda x: np.array(x), list(ret[1:]))
+        feats = np.vstack((rep_count, hst_count, exc_count, qst_count, \
+                            neg_count, tw_length, labels)).transpose()
         if verbose:
             print '\nTime elapsed on processing and feature extraction: %.0fs' % ((time.time()-t0))
         return (corpus, feats)
@@ -335,9 +344,18 @@ class Processor:
             Whether to store the resulting matrix in disk (binary format). 
             Default set to false.
         verbose : boolean , optional
-            Set verbose output on or off.        
+            Set verbose output on or off.
+
+        Returns
+        ----------
+        mat : csr_matrix
+            Feature matrix for the tweet list.
+        labels : array-like
+            Label array for the tweet list.        
         """
         corpus, feats = self.process(tweetList, verbose)
+        labels = feats[:, -1]
+        feats = feats[:, :-1]
         if fit:
             mat = self.fit_transform(corpus, saveVectorizer, saveMatrix, verbose)
         else:
@@ -346,5 +364,5 @@ class Processor:
             feats = scale(feats) # scale needed to faster convergence
             feats = toSparse(feats) # csr_matrix format
             mat = hstack([mat, feats])
-        return mat
+        return (mat, labels)
 
