@@ -119,7 +119,7 @@ class Processor:
         ll = len(tweetList)
         dot = ll / 50
         for x in xrange(ll):
-            if x % dot == 0:
+            if dot > 0 and x % dot == 0:
                 stdout.write("."); stdout.flush()
             tweet = tweetList[x].lower().encode('utf-8')
 
