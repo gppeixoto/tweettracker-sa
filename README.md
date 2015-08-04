@@ -37,7 +37,8 @@ where **lang** stands for language (either code or abbreviation, depending on th
 3. Store the vectorizer fitted from the data for each language. This will be necessary to classify online, unseen data.
 4. Use `sklearn.linear_model.LogisticRegression` as classifier for optimal results. Using a LinearSVM does not yield a big accuracy improvement, is not as fast and is not possible to easily get the probabilities.
 
+### License
+MIT License (MIT)
 
-
-
+Copyright (c) 2015 Guilherme Peixoto
 
