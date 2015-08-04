@@ -25,11 +25,11 @@ Check [twitter-specific tokenizing repository](https://github.com/myleott/ark-tw
 
 ### How to:
 Before deployment, the following steps should be done:
-1. Collect data using `parse.py` from tweet:  
-    `zcat path/to/backup_file.json.gz.Z | python parse.py lang limit`  
-where **lang** stands for language (either code or abbreviation, depending on the "tweet-lang" type) and limit is the number of tweets to be collected (pass -1 to collect every possible tweet).  
+
+1. Collect data using `parse.py` from tweet: `zcat path/to/backup_file.json.gz.Z | python parse.py lang limit`
+where **lang** stands for language (either code or abbreviation, depending on the "tweet-lang" type) and limit is the number of tweets to be collected (pass -1 to collect every possible tweet).
     - `WARNING (1):` there should be one classifier per language, therefore each either a bash script is needed to make this automated for many languages or call for each desired language.
-2. Process the data collected with `Processor` class. The following settings are default:  
+2. Process the data collected with `Processor` class. The following settings are default:
     + TF-IDF representation of the vocabulary
     + Unigrams and bigrams only (trade-off between processing time complexity and accuracy improvement by using trigrams favors time not using trigrams)
     + Twitter-specific features are **not concatened** by default, must set the parameter on (see documentation for usage)
