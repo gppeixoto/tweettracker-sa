@@ -5,10 +5,12 @@ from sklearn.metrics import roc_auc_score
 from processor import Processor
 import numpy as np
 import time
+import sys
 
-tweets = pickle.load(open("../tweets.p", "r"))
+fpath = sys.argv[-1]
+tweets = pickle.load(open(fpath, "r"))
 pr = Processor()
-mat, labels = pr.build_feature_matrix(tweets, False, True, verbose=True, saveVectorizer=True, saveMatrix=True)
+mat, labels = pr.build_feature_matrix(tweets, True, True, verbose=True)
 
 def get_mask(labels):
     idxs = []

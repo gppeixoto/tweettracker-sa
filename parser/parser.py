@@ -29,13 +29,13 @@ t0 = time.time()
 docs = []
 p = 0.05
 _limit = int(sys.argv[-1])
-lang = int(sys.argv[-2])
+lang = sys.argv[-2]
 curr_year = time.gmtime()[0]
 
 for lineCount, line in enumerate(sys.stdin):
 	if lineCount % 100000 == 0: 
 		print '%d: %.0fs %d' % (lineCount, (time.time()-t0), len(docs))
-	if len(docs) > _limit-1:
+	if limit != -1 and len(docs) > _limit-1:
 		print '%d tweets collected at line %d' % (len(docs), lineCount)
 		break
 	doc = json.loads(line)
@@ -54,7 +54,7 @@ import cPickle as pickle
 tt = time.gmtime()[:-3]
 tt = "-".join([str(i) for i in tt])
 print 'Saving...'
-fname = "tweets-lang="+str(lang)+tt+".p"
+fname = "tweets-lang="+lang+"_"+tt+".p"
 pickle.dump(docs, open(fname, "wb"))
 print 'Tweets stored at: %s' % fname
 print 'Time elapsed: %.0fs' % ((time.time()-t0))

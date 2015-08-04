@@ -52,8 +52,9 @@ class Processor:
     """
     Class for processing tweets to the adequate format. Do not use for
     many languages at once, as it will not only cause a high drop in
-    accuracy but may break the code as well.
-    
+    accuracy but may break the code as well. The processing is made
+    in-place for better memory performance.
+
     Parameters
     ----------
     tokenizer : instance of tokenizer class
@@ -123,7 +124,7 @@ class Processor:
         ll = len(tweetList)
         dot = ll / 50
         for x in xrange(ll):
-            if dot > 0 and x % dot == 0:
+            if verbose and dot > 0 and x % dot == 0:
                 stdout.write("."); stdout.flush()
             tweet = tweetList[x].lower().encode('utf-8').decode('utf-8')
 
@@ -345,7 +346,6 @@ class Processor:
             Default set to false.
         verbose : boolean , optional
             Set verbose output on or off.
-
         Returns
         ----------
         mat : csr_matrix
@@ -354,8 +354,8 @@ class Processor:
             Label array for the tweet list.        
         """
         corpus, feats = self.process(tweetList, verbose)
-        labels = feats[:, -1]
-        feats = feats[:, :-1]
+        labels = np.array(feats[:, -1])
+        feats = np.array(feats[:, :-1])
         if fit:
             mat = self.fit_transform(corpus, saveVectorizer, saveMatrix, verbose)
         else:
@@ -363,6 +363,30 @@ class Processor:
         if useTwitterFeatures:
             feats = scale(feats) # scale needed to faster convergence
             feats = toSparse(feats) # csr_matrix format
-            mat = hstack([mat, feats])
+            mat = hstack([mat, feats], format="csr")
         return (mat, labels)
 
+
+    def clear(self, mat, labels):
+        """
+        Clears the samples that were not correctly tokenized and a label
+        could not be inferred. 
+
+        Parameters
+        ----------
+        mat : csr_matrix
+            Sparse matrix of feature set.
+        labels : numpy.array
+            Array of integers corresponding to the labels. 
+
+        Returns
+        ----------
+        Subset of parameters. 
+        """
+        mask = []
+        for i, label in enumerate(labels):
+            if label != np.inf: mask.append(i)
+        mask = np.array(mask)
+        mat = mat[mask]
+        labels = labels[mask]
+        return (mat, labels)
